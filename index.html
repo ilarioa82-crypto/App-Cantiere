@@ -3,85 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestione Cantiere Pro</title>
+    <title>Cantiere Pro Manager</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        :root { --azzurro: #007bff; --giallo: #ffcc00; --nero: #222; }
-        body { font-family: sans-serif; background: #f4f4f4; margin: 0; }
+        :root { --azzurro: #007bff; --giallo: #ffcc00; }
+        body { font-family: sans-serif; background: #f4f4f4; margin: 0; padding-bottom: 50px; }
         header { background: var(--azzurro); color: white; padding: 15px; text-align: center; border-bottom: 4px solid var(--giallo); }
-        .edit-ditta { font-size: 10px; color: var(--giallo); cursor: pointer; display: block; }
-        
-        .nav { display: flex; background: #333; }
-        .nav button { flex: 1; padding: 15px; border: none; background: #333; color: var(--giallo); font-weight: bold; cursor: pointer; }
+        .nav { display: flex; background: #333; position: sticky; top: 0; z-index: 100; }
+        .nav button { flex: 1; padding: 15px; border: none; background: #333; color: var(--giallo); font-weight: bold; }
         .nav button.active { background: var(--giallo); color: black; }
-
         .container { padding: 15px; }
-        .sezione { display: none; }
-        .sezione.active { display: block; }
-
-        .card { background: white; padding: 15px; margin-bottom: 15px; border-radius: 8px; position: relative; border-left: 6px solid var(--azzurro); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        input, select, textarea { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
-        
-        .btn-add { background: var(--giallo); border: none; padding: 12px; width: 100%; font-weight: bold; border-radius: 5px; cursor: pointer; margin-top: 10px; }
-        .btn-excel { background: #28a745; color: white; border: none; padding: 12px; width: 100%; border-radius: 5px; margin-top: 10px; width: 100%; }
-        
-        .semaforo { display: inline-block; width: 15px; height: 15px; border-radius: 50%; margin-right: 5px; }
-        .S-verde { background: #28a745; } .S-giallo { background: #ffc107; } .S-rosso { background: #dc3545; }
-        
-        .btn-delete { position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 18px; cursor: pointer; }
-        .info-riga { font-size: 14px; margin: 3px 0; }
-        .badge { background: #eee; padding: 2px 5px; border-radius: 4px; font-size: 12px; }
+        .card { background: white; padding: 15px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border-left: 5px solid var(--azzurro); position: relative; }
+        .cantiere-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .dettaglio-cantiere { display: none; margin-top: 15px; border-top: 1px solid #ddd; padding-top: 10px; }
+        .dettaglio-cantiere.open { display: block; }
+        input, select, textarea { width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; }
+        .btn { background: var(--giallo); border: none; padding: 10px; width: 100%; font-weight: bold; border-radius: 5px; cursor: pointer; margin-top: 5px; }
+        .btn-file { background: #6c757d; color: white; margin-top: 10px; }
+        .semaforo { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+        .btn-delete { color: #dc3545; background: none; border: none; font-size: 20px; cursor: pointer; position: absolute; top: 10px; right: 10px; }
+        .file-box { background: #f9f9f9; padding: 5px; border-radius: 4px; margin-top: 5px; font-size: 13px; border: 1px dashed #ccc; }
     </style>
 </head>
 <body>
 
 <header>
-    <h1 id="nomeDitta">LA TUA DITTA</h1>
-    <span class="edit-ditta" onclick="cambiaDitta()">[Modifica Nome Ditta]</span>
+    <h1 id="nomeDitta" onclick="cambiaDitta()">LA TUA DITTA ✏️</h1>
 </header>
 
 <div class="nav">
-    <button id="tabC" class="active" onclick="show('cantieri')">CANTIERI</button>
-    <button id="tabO" onclick="show('operai')">OPERAI & BUSTE PAGA</button>
+    <button id="tabC" class="active" onclick="switchTab('cantieri')">📂 CANTIERI</button>
+    <button id="tabO" onclick="switchTab('operai')">👥 OPERAI / BUSTE PAGA</button>
 </div>
 
-<div class="container">
-    <div id="sez-cantieri" class="sezione active">
-        <div class="card" style="border-left-color: var(--giallo);">
-            <h3>Nuovo Cantiere</h3>
-            <input type="text" id="c-nome" placeholder="Nome Cantiere (es. Villa Rossi)">
-            <select id="c-stato">
-                <option value="S-verde">🟢 In Corso / Attivo</option>
-                <option value="S-giallo">🟡 In Attesa Materiali</option>
-                <option value="S-rosso">🔴 Fermo / Chiuso</option>
-            </select>
-            <input type="text" id="c-doc" placeholder="Link Progetti / Documenti">
-            <hr>
-            <h4>Aggiungi Ore a questo cantiere:</h4>
-            <input type="text" id="o-nome" placeholder="Nome Operaio">
-            <input type="number" id="o-ore" placeholder="Ore lavorate">
-            <textarea id="o-note" placeholder="Note (es. Intonaco esterno)"></textarea>
-            <input type="month" id="o-mese" value="2024-05">
-            <button class="btn-add" onclick="salvaTutto()">SALVA IN CANTIERE 🏗️</button>
-        </div>
-        <div id="lista-cantieri"></div>
+<div class="container" id="area-cantieri">
+    <div class="card" style="border-left-color: var(--giallo)">
+        <h3>➕ Apri Nuovo Cantiere</h3>
+        <input type="text" id="nuovo-c-nome" placeholder="Nome Cantiere (es. Via Mazzini 10)">
+        <button class="btn" onclick="creaCantiere()">CREA CARTELLA CANTIERE</button>
     </div>
+    <div id="lista-cantieri"></div>
+</div>
 
-    <div id="sez-operai" class="sezione">
-        <div class="card">
-            <h3>Riepilogo Ore per Buste Paga</h3>
-            <p>Seleziona il mese per scaricare il report Excel:</p>
-            <input type="month" id="filtro-mese" value="2024-05">
-            <button class="btn-excel" onclick="scaricaExcel()">📥 SCARICA REPORT EXCEL</button>
-        </div>
-        <div id="lista-riepilogo-operai"></div>
+<div class="container" id="area-operai" style="display:none">
+    <div class="card">
+        <h3>📊 Report Mensile Buste Paga</h3>
+        <input type="month" id="filtro-mese" value="2024-05">
+        <button class="btn" style="background:#28a745; color:white" onclick="scaricaExcel()">📥 SCARICA EXCEL OPERAI</button>
     </div>
 </div>
 
 <script>
-    // INCOLLA LE TUE CHIAVI FIREBASE QUI
     const firebaseConfig = {
         apiKey: "TUA_API_KEY",
         authDomain: "TUO_PROGETTO.firebaseapp.com",
@@ -93,89 +68,104 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
+    const storage = firebase.storage();
 
-    function show(s) {
-        document.querySelectorAll('.sezione').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.nav button').forEach(el => el.classList.remove('active'));
-        if(s === 'cantieri') { document.getElementById('sez-cantieri').classList.add('active'); document.getElementById('tabC').classList.add('active'); }
-        else { document.getElementById('sez-operai').classList.add('active'); document.getElementById('tabO').classList.add('active'); }
+    function switchTab(t) {
+        document.getElementById('area-cantieri').style.display = t === 'cantieri' ? 'block' : 'none';
+        document.getElementById('area-operai').style.display = t === 'operai' ? 'block' : 'none';
+        document.getElementById('tabC').className = t === 'cantieri' ? 'active' : '';
+        document.getElementById('tabO').className = t === 'operai' ? 'active' : '';
     }
 
-    function cambiaDitta() {
-        let n = prompt("Nome della ditta:");
-        if(n) document.getElementById('nomeDitta').innerText = n.toUpperCase();
+    // CREA SOLO IL CANTIERE
+    async function creaCantiere() {
+        const nome = document.getElementById('nuovo-c-nome').value;
+        if(!nome) return alert("Inserisci un nome!");
+        await db.collection("cantieri_cartelle").add({ nome, data_apertura: new Date(), stato: 'verde' });
+        document.getElementById('nuovo-c-nome').value = "";
     }
 
-    // SALVATAGGIO UNIFICATO
-    async function salvaTutto() {
-        const cNome = document.getElementById('c-nome').value;
-        const cStato = document.getElementById('c-stato').value;
-        const cDoc = document.getElementById('c-doc').value;
-        const oNome = document.getElementById('o-nome').value;
-        const oOre = document.getElementById('o-ore').value;
-        const oNote = document.getElementById('o-note').value;
-        const oMese = document.getElementById('o-mese').value;
-
-        if(!cNome || !oNome || !oOre) { alert("Inserisci almeno: Cantiere, Operaio e Ore!"); return; }
-
-        // Salviamo il record unico che contiene sia dati cantiere che dati operaio
-        await db.collection("registri_completi").add({
-            cantiere: cNome, stato: cStato, documento: cDoc,
-            operaio: oNome, ore: parseFloat(oOre), note: oNote, mese: oMese,
-            data: new Date()
-        });
-        
-        alert("Dati salvati con successo!");
-        document.getElementById('o-ore').value = "";
-        document.getElementById('o-note').value = "";
-    }
-
-    // LISTA CANTIERI (Vedi chi ha lavorato e quando)
-    db.collection("registri_completi").orderBy("data", "desc").onSnapshot(snap => {
-        let html = "";
+    // VISUALIZZA CARTELLE CANTIERI
+    db.collection("cantieri_cartelle").orderBy("data_apertura", "desc").onSnapshot(snap => {
+        const lista = document.getElementById('lista-cantieri');
+        lista.innerHTML = "";
         snap.forEach(doc => {
-            let d = doc.data();
-            html += `<div class="card">
-                <button class="btn-delete" onclick="elimina('${doc.id}')">🗑️</button>
-                <div class="info-riga"><span class="semaforo ${d.stato}"></span><strong>${d.cantiere}</strong></div>
-                <div class="info-riga">👤 Operaio: <b>${d.operaio}</b> | ⏱️ Ore: <b>${d.ore}</b></div>
-                <div class="info-riga">📝 Note: ${d.note}</div>
-                ${d.documento ? `<a href="${d.documento}" target="_blank" style="color:var(--azzurro); font-size:12px;">📄 Documenti/Foto</a>` : ''}
-                <div style="font-size:9px; color:gray; margin-top:5px;">Mese: ${d.mese}</div>
-            </div>`;
+            const c = doc.data();
+            lista.innerHTML += `
+                <div class="card">
+                    <button class="btn-delete" onclick="eliminaCantiere('${doc.id}')">🗑️</button>
+                    <div class="cantiere-header" onclick="toggleDettaglio('${doc.id}')">
+                        <span><strong>📁 ${c.nome}</strong></span>
+                        <span class="semaforo" style="background:${c.stato === 'verde' ? '#28a745' : (c.stato === 'giallo' ? '#ffc107' : '#dc3545')}"></span>
+                    </div>
+                    <div id="det-${doc.id}" class="dettaglio-cantiere">
+                        <select onchange="aggiornaStato('${doc.id}', this.value)">
+                            <option value="verde" ${c.stato=='verde'?'selected':''}>🟢 Attivo</option>
+                            <option value="giallo" ${c.stato=='giallo'?'selected':''}>🟡 In Attesa</option>
+                            <option value="rosso" ${c.stato=='rosso'?'selected':''}>🔴 Chiuso</option>
+                        </select>
+                        <hr>
+                        <h4>📤 Carica Foto/Progetto</h4>
+                        <input type="file" id="file-${doc.id}" class="btn-file" onchange="caricaFile('${doc.id}', '${c.nome}')">
+                        <div id="files-${doc.id}"></div>
+                        <hr>
+                        <h4>⏱️ Registra Ore</h4>
+                        <input type="text" id="op-${doc.id}" placeholder="Nome Operaio">
+                        <input type="number" id="ore-${doc.id}" placeholder="Ore">
+                        <textarea id="note-${doc.id}" placeholder="Cosa è stato fatto?"></textarea>
+                        <input type="month" id="mese-${doc.id}" value="2024-05">
+                        <button class="btn" onclick="salvaOre('${doc.id}', '${c.nome}')">REGISTRA ORE</button>
+                    </div>
+                </div>`;
+            mostraFile(doc.id);
         });
-        document.getElementById('lista-cantieri').innerHTML = html;
     });
 
-    function elimina(id) {
-        if(confirm("Eliminare questo record?")) db.collection("registri_completi").doc(id).delete();
+    function toggleDettaglio(id) { document.getElementById('det-'+id).classList.toggle('open'); }
+
+    async function caricaFile(idCantiere, nomeC) {
+        const file = document.getElementById('file-'+idCantiere).files[0];
+        const ref = storage.ref(`cantieri/${nomeC}/${file.name}`);
+        await ref.put(file);
+        const url = await ref.getDownloadURL();
+        await db.collection("file_cantieri").add({ idCantiere, url, nomeFile: file.name });
+        alert("File caricato!");
     }
 
-    // EXCEL PER BUSTE PAGA
+    async function mostraFile(idCantiere) {
+        const snap = await db.collection("file_cantieri").where("idCantiere", "==", idCantiere).get();
+        let html = "";
+        snap.forEach(d => {
+            html += `<div class="file-box"><a href="${d.data().url}" target="_blank">📄 ${d.data().nomeFile}</a></div>`;
+        });
+        document.getElementById('files-'+idCantiere).innerHTML = html;
+    }
+
+    async function salvaOre(idCantiere, nomeC) {
+        const operaio = document.getElementById('op-'+idCantiere).value;
+        const ore = document.getElementById('ore-'+idCantiere).value;
+        const note = document.getElementById('note-'+idCantiere).value;
+        const mese = document.getElementById('mese-'+idCantiere).value;
+        if(!operaio || !ore) return alert("Mancano dati!");
+        await db.collection("ore_operai").add({ idCantiere, nomeC, operaio, ore: parseFloat(ore), note, mese, data: new Date() });
+        alert("Ore salvate in " + nomeC);
+    }
+
     async function scaricaExcel() {
         const mese = document.getElementById('filtro-mese').value;
-        const snap = await db.collection("registri_completi").where("mese", "==", mese).get();
-        let datiExcel = [];
-        
-        snap.forEach(doc => {
-            let d = doc.data();
-            datiExcel.push({
-                OPERAIO: d.operaio,
-                CANTIERE: d.cantiere,
-                ORE: d.ore,
-                NOTE: d.note,
-                MESE: d.mese
-            });
-        });
-
-        if(datiExcel.length === 0) { alert("Nessun dato per questo mese!"); return; }
-
-        const ws = XLSX.utils.json_to_sheet(datiExcel);
+        const snap = await db.collection("ore_operai").where("mese", "==", mese).get();
+        let dati = [];
+        snap.forEach(d => { let r = d.data(); dati.push({ OPERAIO: r.operaio, CANTIERE: r.nomeC, ORE: r.ore, NOTE: r.note }); });
+        const ws = XLSX.utils.json_to_sheet(dati);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Buste Paga");
         XLSX.writeFile(wb, `Report_Operai_${mese}.xlsx`);
     }
+
+    function eliminaCantiere(id) { if(confirm("Vuoi eliminare tutta la cartella?")) db.collection("cantieri_cartelle").doc(id).delete(); }
+    function cambiaDitta() { let n = prompt("Nome ditta:"); if(n) document.getElementById('nomeDitta').innerText = n.toUpperCase(); }
 </script>
 </body>
 </html>
+
 
