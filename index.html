@@ -3,71 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>App Cantiere</title>
+    <title>Cantiere App Gialla-Azzurra</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <style>
-        body { font-family: sans-serif; background-color: #f0f0f0; margin: 0; }
-        header { background: #333; color: #ffcc00; padding: 20px; text-align: center; }
-        .modifica-ditta { font-size: 12px; color: #ccc; cursor: pointer; text-decoration: underline; }
+        body { font-family: 'Arial Black', sans-serif; background-color: #f0f0f0; margin: 0; padding: 0; }
         
-        /* I due tasti grandi */
-        .nav { display: flex; }
-        .nav button { flex: 1; padding: 15px; border: none; background: #444; color: white; font-weight: bold; cursor: pointer; }
-        .nav button.active { background: #ffcc00; color: #333; }
+        /* Header Azzurro */
+        header { background-color: #007bff; color: white; padding: 20px; text-align: center; border-bottom: 5px solid #ffcc00; }
+        .edit-ditta { font-size: 12px; color: #ffcc00; cursor: pointer; text-decoration: underline; display: block; margin-top: 5px; font-family: sans-serif; }
+        
+        /* Tasti Navigazione Gialli */
+        .nav { display: flex; background: #333; }
+        .nav button { flex: 1; padding: 18px; border: none; background: #444; color: #ffcc00; font-weight: bold; font-size: 14px; cursor: pointer; text-transform: uppercase; }
+        .nav button.active { background: #ffcc00; color: #000; border-bottom: 4px solid #007bff; }
 
         .container { padding: 15px; }
         .sezione { display: none; }
         .sezione.active { display: block; }
 
-        .scheda { background: white; padding: 15px; margin-bottom: 15px; border-radius: 8px; position: relative; border-left: 5px solid #ffcc00; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        input, textarea, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        /* Schede Bianche con bordo azzurro */
+        .card { background: white; padding: 15px; margin-bottom: 15px; border-radius: 10px; position: relative; border-left: 8px solid #007bff; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
         
-        .btn-invia { background: #ffcc00; color: #333; font-weight: bold; border: none; padding: 15px; width: 100%; border-radius: 5px; cursor: pointer; }
-        .btn-excel { background: #28a745; color: white; border: none; padding: 15px; width: 100%; border-radius: 5px; margin-top: 15px; cursor: pointer; }
+        input, textarea, select { width: 100%; padding: 12px; margin: 8px 0; border: 2px solid #007bff; border-radius: 6px; box-sizing: border-box; font-size: 16px; font-weight: bold; }
         
-        /* IL CESTINO */
-        .btn-elimina { position: absolute; top: 10px; right: 10px; background: #ff4444; color: white; border: none; padding: 5px 8px; border-radius: 5px; cursor: pointer; }
+        /* Bottone Invio Giallo */
+        .btn-invia { background: #ffcc00; color: #000; font-weight: bold; border: none; padding: 15px; width: 100%; border-radius: 6px; cursor: pointer; font-size: 18px; text-transform: uppercase; }
         
-        .riga { margin: 5px 0; }
-        .label { font-weight: bold; color: #666; }
+        /* Bottone Excel Verde */
+        .btn-excel { background: #28a745; color: white; border: none; padding: 15px; width: 100%; border-radius: 6px; margin-top: 20px; font-weight: bold; font-size: 16px; cursor: pointer; }
+        
+        /* IL CESTINO ROSSO */
+        .btn-elimina { position: absolute; top: 10px; right: 10px; background: #dc3545; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 18px; }
+        
+        .riga { margin: 6px 0; font-family: sans-serif; font-size: 15px; color: #333; }
+        .label { font-weight: bold; color: #007bff; text-transform: uppercase; font-size: 12px; }
+        .file-link { color: #007bff; font-weight: bold; text-decoration: none; display: block; margin-top: 10px; }
     </style>
 </head>
 <body>
 
 <header>
-    <h1 id="nomeDitta">NOME DITTA</h1>
-    <span class="modifica-ditta" onclick="cambiaDitta()">Modifica Nome</span>
+    <h1 id="nomeDitta" style="margin:0">LA TUA DITTA</h1>
+    <span class="edit-ditta" onclick="cambiaDitta()">Modifica Nome Ditta</span>
 </header>
 
 <div class="nav">
-    <button id="t1" class="active" onclick="switchTab('cantiere')">CANTIERI & PROGETTI</button>
-    <button id="t2" onclick="switchTab('ore')">ORE & NOTE OPERAI</button>
+    <button id="tab1" class="active" onclick="apri('cantiere')">Cantieri & Doc</button>
+    <button id="tab2" onclick="apri('ore')">Ore & Note</button>
 </div>
 
 <div class="container">
     
     <div id="sez-cantiere" class="sezione active">
-        <div class="scheda">
-            <h3>Nuovo Cantiere / Progetto</h3>
-            <input type="text" id="c-nome" placeholder="Nome Cantiere">
-            <input type="text" id="c-lavoro" placeholder="Lavoro svolto">
-            <input type="text" id="c-progetto" placeholder="Link Progetto o Documento">
-            <button class="btn-invia" onclick="salvaCantiere()">SALVA CANTIERE</button>
+        <div class="card" style="border-left-color: #ffcc00;">
+            <h3 style="margin-top:0; color:#007bff">NUOVO CANTIERE</h3>
+            <input type="text" id="c-nome" placeholder="NOME CANTIERE">
+            <input type="text" id="c-lavoro" placeholder="TIPO DI LAVORO">
+            <input type="text" id="c-doc" placeholder="LINK PROGETTO / DOCUMENTO">
+            <button class="btn-invia" onclick="salvaCantiere()">SALVA CANTIERE 🏗️</button>
         </div>
         <div id="lista-cantiere"></div>
     </div>
 
     <div id="sez-ore" class="sezione">
-        <div class="scheda">
-            <h3>Registra Ore e Note</h3>
-            <input type="text" id="o-nome" placeholder="Nome Operaio">
-            <input type="number" id="o-ore" placeholder="Ore lavorate">
-            <textarea id="o-note" placeholder="Note (cosa è stato fatto oggi)"></textarea>
+        <div class="card" style="border-left-color: #ffcc00;">
+            <h3 style="margin-top:0; color:#007bff">REGISTRA ORE</h3>
+            <input type="text" id="o-nome" placeholder="NOME OPERAIO">
+            <input type="number" id="o-ore" placeholder="ORE LAVORATE">
+            <textarea id="o-note" placeholder="NOTE (Cosa è stato fatto)"></textarea>
             <input type="month" id="o-mese" value="2024-05">
-            <button class="btn-invia" onclick="salvaOre()">REGISTRA ORE</button>
+            <button class="btn-invia" onclick="salvaOre()">INVIA DATI 🚀</button>
         </div>
         <button class="btn-excel" onclick="scaricaExcel()">📥 SCARICA EXCEL DEL MESE</button>
         <div id="lista-ore"></div>
@@ -78,111 +86,110 @@
 <script>
     // --- INCOLLA QUI LE TUE CHIAVI FIREBASE ---
     const firebaseConfig = {
-        apiKey: "TUA_API_KEY",
-        authDomain: "TUO_AUTH",
-        projectId: "TUO_ID",
-        storageBucket: "TUO_BUCKET",
-        messagingSenderId: "TUO_SENDER",
-        appId: "TUO_APP_ID"
+        apiKey: "INSERISCI_TUA_API_KEY",
+        authDomain: "INSERISCI_TUO_AUTH",
+        projectId: "INSERISCI_TUO_ID",
+        storageBucket: "INSERISCI_TUO_BUCKET",
+        messagingSenderId: "INSERISCI_TUO_SENDER",
+        appId: "INSERISCI_TUO_APP_ID"
     };
     // -----------------------------------------
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    function switchTab(t) {
+    function apri(nome) {
         document.querySelectorAll('.sezione').forEach(s => s.classList.remove('active'));
         document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
-        if(t === 'cantiere') {
+        if(nome === 'cantiere') {
             document.getElementById('sez-cantiere').classList.add('active');
-            document.getElementById('t1').classList.add('active');
+            document.getElementById('tab1').classList.add('active');
         } else {
             document.getElementById('sez-ore').classList.add('active');
-            document.getElementById('t2').classList.add('active');
+            document.getElementById('tab2').classList.add('active');
         }
     }
 
     function cambiaDitta() {
-        let n = prompt("Nuovo nome ditta:");
+        let n = prompt("Inserisci il nome della tua azienda:");
         if(n) document.getElementById('nomeDitta').innerText = n.toUpperCase();
     }
 
-    // --- CANTIERI ---
+    // --- LOGICA CANTIERI ---
     function salvaCantiere() {
         const nome = document.getElementById('c-nome').value;
         const lavoro = document.getElementById('c-lavoro').value;
-        const progetto = document.getElementById('c-progetto').value;
+        const doc = document.getElementById('c-doc').value;
         if(nome) {
-            db.collection("cantieri").add({ nome, lavoro, progetto, data: new Date() });
+            db.collection("cantieri_progetti").add({ nome, lavoro, doc, data: new Date() });
             document.getElementById('c-nome').value = '';
         }
     }
 
-    db.collection("cantieri").orderBy("data", "desc").onSnapshot(s => {
+    db.collection("cantieri_progetti").orderBy("data", "desc").onSnapshot(snapshot => {
         let html = "";
-        s.forEach(doc => {
+        snapshot.forEach(doc => {
             let d = doc.data();
-            html += `<div class="scheda">
-                <button class="btn-elimina" onclick="elimina('${doc.id}', 'cantieri')">🗑️</button>
-                <strong>${d.nome}</strong><br>
-                <div class="riga">${d.lavoro}</div>
-                ${d.progetto ? `<a href="${d.progetto}" target="_blank">📄 Vedi Progetto</a>` : ''}
+            html += `<div class="card">
+                <button class="btn-elimina" onclick="elimina('${doc.id}', 'cantieri_progetti')">🗑️</button>
+                <div class="riga"><span class="label">Cantiere:</span> <strong>${d.nome}</strong></div>
+                <div class="riga"><span class="label">Lavoro:</span> ${d.lavoro}</div>
+                ${d.doc ? `<a href="${d.doc}" class="file-link" target="_blank">📄 APRI PROGETTO</a>` : ''}
             </div>`;
         });
         document.getElementById('lista-cantiere').innerHTML = html;
     });
 
-    // --- ORE ---
+    // --- LOGICA ORE ---
     function salvaOre() {
-        const nome = document.getElementById('o-nome').value;
+        const operaio = document.getElementById('o-nome').value;
         const ore = document.getElementById('o-ore').value;
         const note = document.getElementById('o-note').value;
         const mese = document.getElementById('o-mese').value;
-        if(nome && ore) {
-            db.collection("ore").add({ nome, ore, note, mese, data: new Date() });
-            alert("Salvato!");
+        if(operaio && ore) {
+            db.collection("ore_note_operai").add({ operaio, ore, note, mese, data: new Date() });
+            alert("Salvato in Database!");
         }
     }
 
-    db.collection("ore").orderBy("data", "desc").onSnapshot(s => {
+    db.collection("ore_note_operai").orderBy("data", "desc").onSnapshot(snapshot => {
         let html = "";
-        s.forEach(doc => {
+        snapshot.forEach(doc => {
             let d = doc.data();
-            html += `<div class="scheda">
-                <button class="btn-elimina" onclick="elimina('${doc.id}', 'ore')">🗑️</button>
-                <div class="riga"><span class="label">Operaio:</span> ${d.nome}</div>
+            html += `<div class="card">
+                <button class="btn-elimina" onclick="elimina('${doc.id}', 'ore_note_operai')">🗑️</button>
+                <div class="riga"><span class="label">Operaio:</span> ${d.operaio}</div>
                 <div class="riga"><span class="label">Ore:</span> ${d.ore}</div>
                 <div class="riga"><span class="label">Note:</span> ${d.note}</div>
-                <div style="font-size:10px; color:gray">${d.mese}</div>
+                <div style="font-size:10px; color:#999; margin-top:5px;">Mese: ${d.mese}</div>
             </div>`;
         });
         document.getElementById('lista-ore').innerHTML = html;
     });
 
-    // --- FUNZIONE ELIMINA ---
-    function elimina(id, col) {
-        if(confirm("Vuoi cancellare definitivamente?")) {
-            db.collection(col).doc(id).delete();
+    // --- CESTINO ---
+    function elimina(id, collezione) {
+        if(confirm("Sei sicuro di voler cancellare questo dato?")) {
+            db.collection(collezione).doc(id).delete();
         }
     }
 
     // --- EXCEL ---
     async function scaricaExcel() {
-        const mese = document.getElementById('o-mese').value;
-        const snap = await db.collection("ore").where("mese", "==", mese).get();
-        let dati = [];
-        snap.forEach(d => {
-            let r = d.data();
-            dati.push({ OPERAIO: r.nome, ORE: r.ore, NOTE: r.note, MESE: r.mese });
+        const meseSel = document.getElementById('o-mese').value;
+        const snapshot = await db.collection("ore_note_operai").where("mese", "==", meseSel).get();
+        let righe = [];
+        snapshot.forEach(doc => {
+            let r = doc.data();
+            righe.push({ OPERAIO: r.operaio, ORE: r.ore, NOTE: r.note, MESE: r.mese });
         });
-        if(dati.length === 0) { alert("Nessun dato per questo mese"); return; }
-        const ws = XLSX.utils.json_to_sheet(dati);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Report");
-        XLSX.writeFile(wb, `Report_${mese}.xlsx`);
+        if(righe.length === 0) { alert("Nessun dato trovato per questo mese!"); return; }
+        const foglio = XLSX.utils.json_to_sheet(righe);
+        const cartella = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(cartella, foglio, "Ore Cantiere");
+        XLSX.writeFile(cartella, `Report_Cantiere_${meseSel}.xlsx`);
     }
 </script>
 </body>
 </html>
-
 
