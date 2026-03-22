@@ -1,126 +1,150 @@
 <!DOCTYPE html>
-<html>
+<html lang="it">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestione Cantiere</title>
+    <title>Gestione Cantiere PRO</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; background: #222; color: #fff; padding: 20px; }
-        h1 { color: #ffcc00; text-align: center; }
-        .sezione { background: #333; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #ffcc00; }
-        input { width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: none; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: #ffcc00; color: #000; font-weight: bold; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px; }
-        .scheda-cantiere { background: #444; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 5px solid #ffcc00; position: relative; }
-        .riga-dati { margin-bottom: 5px; font-size: 16px; }
-        .label { color: #ffcc00; font-weight: bold; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; margin: 0; padding: 0; }
+        header { background-color: #333; color: #fff; padding: 20px; text-align: center; position: relative; }
+        header h1 { margin: 0; font-size: 24px; cursor: pointer; }
         
-        /* NUOVI TASTI CESTINO E MODIFICA */
-        .area-tasti { display: flex; gap: 10px; margin-top: 10px; }
-        .btn-elimina { background: #ff4444; color: white; padding: 8px; font-size: 14px; width: 48%; }
-        .btn-modifica { background: #4488ff; color: white; padding: 8px; font-size: 14px; width: 48%; }
+        /* Menu in alto che ti piaceva */
+        .nav-tabs { display: flex; justify-content: space-around; background-color: #444; }
+        .nav-tabs div { padding: 15px; color: white; cursor: pointer; width: 50%; text-align: center; font-weight: bold; border-bottom: 3px solid transparent; }
+        .nav-tabs div.active { background-color: #555; border-bottom: 3px solid #ffcc00; }
+
+        .container { padding: 20px; }
+        .section { display: none; }
+        .section.active { display: block; }
+
+        .card { background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: relative; }
+        input, button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; }
+        button { background-color: #ffcc00; color: #333; font-weight: bold; border: none; cursor: pointer; }
+        
+        /* IL CESTINO */
+        .btn-delete { background-color: #ff4444; color: white; width: auto; padding: 5px 10px; font-size: 12px; position: absolute; top: 10px; right: 10px; border-radius: 3px; }
+        .btn-edit-title { background: none; color: #ffcc00; border: none; font-size: 12px; text-decoration: underline; cursor: pointer; width: auto; margin: 0; padding: 0; }
     </style>
 </head>
 <body>
 
-    <h1>🏗️ REGISTRO CANTIERE</h1>
+<header>
+    <h1 id="nomeDitta">LA TUA DITTA</h1>
+    <button class="btn-edit-title" onclick="modificaDitta()">Modifica Nome Ditta</button>
+</header>
 
-    <div class="sezione">
-        <h3>Aggiungi Nuovo Rapporto</h3>
-        <input type="text" id="cantiere" placeholder="Nome Cantiere">
-        <input type="text" id="operaio" placeholder="Nome Operaio">
-        <input type="number" id="ore" placeholder="Ore Lavorate">
-        <input type="text" id="note" placeholder="Note / Lavoro svolto">
-        <button onclick="salvaDato()">INVIA DATI 🚀</button>
+<div class="nav-tabs">
+    <div id="tab1" class="active" onclick="switchTab('cantieri')">DATI CANTIERE</div>
+    <div id="tab2" onclick="switchTab('ore')">ORE DIPENDENTI</div>
+</div>
+
+<div class="container">
+    <div id="sec-cantieri" class="section active">
+        <input type="text" id="c-nome" placeholder="Nome Cantiere">
+        <input type="text" id="c-lavoro" placeholder="Lavoro Svolto">
+        <button onclick="aggiungiCantiere()">AGGIUNGI CANTIERE</button>
+        <hr>
+        <div id="lista-cantieri"></div>
     </div>
 
-    <div id="contenitore-dati">
-        <p style="text-align:center">Caricamento in corso...</p>
+    <div id="sec-ore" class="section">
+        <input type="text" id="o-nome" placeholder="Nome Operaio">
+        <input type="number" id="o-ore" placeholder="Ore Lavorate">
+        <button onclick="aggiungiOre()">REGISTRA ORE</button>
+        <hr>
+        <div id="lista-ore"></div>
     </div>
+</div>
 
-    <script>
-        // --- QUI METTI LE TUE CHIAVI FIREBASE ---
-        var firebaseConfig = {
-            apiKey: "IL_TUO_API_KEY",
-            authDomain: "IL_TUO_PROGETTO.firebaseapp.com",
-            projectId: "IL_TUO_PROGETTO_ID",
-            storageBucket: "IL_TUO_PROGETTO.appspot.com",
-            messagingSenderId: "IL_TUO_SENDER_ID",
-            appId: "IL_TUO_APP_ID"
-        };
-        // ---------------------------------------
+<script>
+    // --- INCOLLA QUI SOTTO LE TUE CHIAVI FIREBASE ---
+    const firebaseConfig = {
+        apiKey: "LE_TUE_CHIAVI",
+        authDomain: "IL_TUO_DOMINIO",
+        projectId: "IL_TUO_ID",
+        storageBucket: "IL_TUO_BUCKET",
+        messagingSenderId: "IL_TUO_SENDER",
+        appId: "IL_TUO_APPID"
+    };
+    // -----------------------------------------------
 
-        firebase.initializeApp(firebaseConfig);
-        var db = firebase.firestore();
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
 
-        // LEGGI I DATI
-        db.collection("rapporti").onSnapshot((snapshot) => {
-            var contenitore = document.getElementById("contenitore-dati");
-            contenitore.innerHTML = "";
-            snapshot.forEach((doc) => {
-                var d = doc.data();
-                var id = doc.id;
-                contenitore.innerHTML += `
-                    <div class="scheda-cantiere">
-                        <div class="riga-dati"><span class="label">Cantiere:</span> ${d.cantiere}</div>
-                        <div class="riga-dati"><span class="label">Operaio:</span> ${d.operaio}</div>
-                        <div class="riga-dati"><span class="label">Ore:</span> ${d.ore}</div>
-                        <div class="riga-dati"><span class="label">Note:</span> ${d.note}</div>
-                        
-                        <div class="area-tasti">
-                            <button class="btn-modifica" onclick="modificaDato('${id}', '${d.cantiere}', '${d.ore}')">✏️ Modifica</button>
-                            <button class="btn-elimina" onclick="eliminaDato('${id}')">🗑️ Elimina</button>
-                        </div>
-                    </div>
-                `;
-            });
+    // Cambia Tab
+    function switchTab(tipo) {
+        document.querySelectorAll('.section, .nav-tabs div').forEach(el => el.classList.remove('active'));
+        if(tipo === 'cantieri') {
+            document.getElementById('sec-cantieri').classList.add('active');
+            document.getElementById('tab1').classList.add('active');
+        } else {
+            document.getElementById('sec-ore').classList.add('active');
+            document.getElementById('tab2').classList.add('active');
+        }
+    }
+
+    // Modifica Nome Ditta
+    function modificaDitta() {
+        let nuovo = prompt("Inserisci il nome della tua ditta:");
+        if(nuovo) document.getElementById('nomeDitta').innerText = nuovo.toUpperCase();
+    }
+
+    // Aggiungi Cantiere
+    function aggiungiCantiere() {
+        let n = document.getElementById('c-nome').value;
+        let l = document.getElementById('c-lavoro').value;
+        if(n && l) {
+            db.collection("cantieri_lavori").add({ nome: n, lavoro: l, data: new Date() });
+            document.getElementById('c-nome').value = ''; document.getElementById('c-lavoro').value = '';
+        }
+    }
+
+    // Aggiungi Ore
+    function aggiungiOre() {
+        let n = document.getElementById('o-nome').value;
+        let o = document.getElementById('o-ore').value;
+        if(n && o) {
+            db.collection("ore_dipendenti").add({ operaio: n, ore: o, data: new Date() });
+            document.getElementById('o-nome').value = ''; document.getElementById('o-ore').value = '';
+        }
+    }
+
+    // Carica Cantieri
+    db.collection("cantieri_lavori").orderBy("data", "desc").onSnapshot(s => {
+        let html = "";
+        s.forEach(doc => {
+            html += `<div class="card">
+                <strong>${doc.data().nome}</strong><br>${doc.data().lavoro}
+                <button class="btn-delete" onclick="elimina('${doc.id}', 'cantieri_lavori')">🗑️</button>
+            </div>`;
         });
+        document.getElementById('lista-cantieri').innerHTML = html;
+    });
 
-        // SALVA I DATI
-        function salvaDato() {
-            var c = document.getElementById("cantiere").value;
-            var o = document.getElementById("operaio").value;
-            var h = document.getElementById("ore").value;
-            var n = document.getElementById("note").value;
+    // Carica Ore
+    db.collection("ore_dipendenti").orderBy("data", "desc").onSnapshot(s => {
+        let html = "";
+        s.forEach(doc => {
+            html += `<div class="card">
+                <strong>${doc.data().operaio}</strong>: ${doc.data().ore} ore
+                <button class="btn-delete" onclick="elimina('${doc.id}', 'ore_dipendenti')">🗑️</button>
+            </div>`;
+        });
+        document.getElementById('lista-ore').innerHTML = html;
+    });
 
-            if(c && o && h) {
-                db.collection("rapporti").add({
-                    cantiere: c,
-                    operaio: o,
-                    ore: h,
-                    note: n,
-                    data: new Date().getTime()
-                });
-                document.getElementById("cantiere").value = "";
-                document.getElementById("note").value = "";
-                alert("Salvato correttamente!");
-            } else {
-                alert("Riempi tutti i campi!");
-            }
+    // Funzione Elimina
+    function elimina(id, collezione) {
+        if(confirm("Vuoi eliminare questo record?")) {
+            db.collection(collezione).doc(id).delete();
         }
-
-        // FUNZIONE ELIMINA (CESTINO)
-        function eliminaDato(id) {
-            if(confirm("Vuoi cancellare questo rapporto definitivamente?")) {
-                db.collection("rapporti").doc(id).delete();
-            }
-        }
-
-        // FUNZIONE MODIFICA
-        function modificaDato(id, vecchioCantiere, vecchieOre) {
-            var nuovoCantiere = prompt("Cambia nome cantiere:", vecchioCantiere);
-            var nuoveOre = prompt("Cambia ore:", vecchieOre);
-            
-            if(nuovoCantiere != null && nuoveOre != null) {
-                db.collection("rapporti").doc(id).update({
-                    cantiere: nuovoCantiere,
-                    ore: nuoveOre
-                });
-            }
-        }
-    </script>
+    }
+</script>
 </body>
 </html>
+
 
 
