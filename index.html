@@ -3,288 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cantiere Online Cloud</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-        // TUA CONFIGURAZIONE FIREBASE
-        const firebaseConfig = {
-            apiKey: "AIzaSyCAD5ITYbnVHEKxfParh1eqmLYV08rswA8",
-            authDomain: "cantiere-online.firebaseapp.com",
-            projectId: "cantiere-online",
-            storageBucket: "cantiere-online.firebasestorage.app",
-            messagingSenderId: "192568492915",
-            appId: "1:192568492915:web:2733df7b714b386e15bb06",
-            measurementId: "G-7JP9M0B5BC"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-
-        // VARIABILI DI STATO
-        let cantieri = [];
-        let cantiereAttuale = null;
-        let ditta = localStorage.getItem('nomeDitta') || "Cantiere Online";
-
-        // --- FUNZIONI CORE ---
-        window.cambiaNomeDitta = function() {
-            const n = prompt("Nome della tua impresa:", ditta);
-            if(n) { ditta = n; localStorage.setItem('nomeDitta', ditta); document.getElementById('nomeDitta').innerText = ditta; }
-        };
-
-        window.toggleModal = () => {
-            const m = document.getElementById('modalCantiere');
-            m.classList.toggle('hidden'); m.classList.toggle('flex');
-        };
-
-        // SALVA CANTIERE SUL CLOUD
-        window.salvaCantiere = async () => {
-            const nome = document.getElementById('nomeCantiere').value;
-            const indirizzo = document.getElementById('indirizzoCantiere').value;
-            if(!nome) return alert("Inserisci almeno il nome!");
-            
-            try {
-                await addDoc(collection(db, "cantieri"), {
-                    nome, indirizzo, stato: 'bg-green-500', ore: [], note: [], foto: [], documenti: [], creatoIl: Date.now()
-                });
-                toggleModal();
-                document.getElementById('nomeCantiere').value = "";
-                document.getElementById('indirizzoCantiere').value = "";
-            } catch (e) { console.error("Errore salvataggio:", e); }
-        };
-
-        // ASCOLTO DATI IN TEMPO REALE
-        onSnapshot(query(collection(db, "cantieri"), orderBy("creatoIl", "desc")), (snapshot) => {
-            cantieri = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            renderLista();
-            if(cantiereAttuale) {
-                cantiereAttuale = cantieri.find(c => c.id === cantiereAttuale.id);
-                renderDettagli();
-            }
-            renderCalendario();
-        });
-
-        function renderLista() {
-            const container = document.getElementById('vistaLista');
-            container.innerHTML = '';
-            cantieri.forEach(c => {
-                const tot = c.ore ? c.ore.reduce((a, o) => a + Number(o.ore), 0) : 0;
-                container.innerHTML += `
-                    <div class="bg-white rounded-3xl p-6 shadow-lg relative border border-slate-200 cursor-pointer" onclick="apriCantiere('${c.id}')">
-                        <div class="absolute top-6 right-6 w-3 h-3 rounded-full ${c.stato}"></div>
-                        <h3 class="font-black text-xl text-slate-800 uppercase mb-1">${c.nome}</h3>
-                        <p class="text-slate-400 text-[9px] font-bold uppercase mb-4">${c.indirizzo || 'Nessun indirizzo'}</p>
-                        <div class="text-[10px] font-black uppercase text-blue-600">Ore Totali: ${tot}h</div>
-                    </div>`;
-            });
-        }
-
-        window.apriCantiere = (id) => {
-            cantiereAttuale = cantieri.find(c => c.id === id);
-            document.getElementById('vistaLista').classList.add('hidden');
-            document.getElementById('vistaCalendario').classList.add('hidden');
-            document.getElementById('mainNav').classList.add('hidden');
-            document.getElementById('vistaDettaglio').classList.remove('hidden');
-            renderDettagli();
-        };
-
-        function renderDettagli() {
-            if(!cantiereAttuale) return;
-            document.getElementById('detNome').innerText = cantiereAttuale.nome;
-            document.getElementById('detIndirizzo').innerText = cantiereAttuale.indirizzo;
-            document.getElementById('cambiaStato').value = cantiereAttuale.stato;
-            renderOreCantiere();
-            renderDocumenti();
-            renderNote();
-            renderFoto();
-        }
-
-        window.tornaAllaLista = () => {
-            cantiereAttuale = null;
-            document.getElementById('vistaDettaglio').classList.add('hidden');
-            document.getElementById('mainNav').classList.remove('hidden');
-            switchTab('cantieri');
-        };
-
-        // REGISTRA ORE SUL CLOUD
-        window.aggiungiOre = async () => {
-            const n = document.getElementById('nomeOperaio').value;
-            const o = document.getElementById('oreLavoro').value;
-            const d = document.getElementById('descLavoro').value;
-            const dt = document.getElementById('dataLavoro').value;
-            if(!n || !o || !dt) return alert("Compila Nome, Ore e Data!");
-
-            const nuovaOra = { idOre: Date.now(), nome: n, ore: Number(o), desc: d, data: dt };
-            const cRef = doc(db, "cantieri", cantiereAttuale.id);
-            await updateDoc(cRef, { ore: arrayUnion(nuovaOra) });
-            
-            document.getElementById('nomeOperaio').value=''; 
-            document.getElementById('oreLavoro').value=''; 
-            document.getElementById('descLavoro').value='';
-        };
-
-        function renderOreCantiere() {
-            const container = document.getElementById('listaOreCantiere');
-            container.innerHTML = '';
-            (cantiereAttuale.ore || []).sort((a,b) => b.idOre - a.idOre).forEach(o => {
-                container.innerHTML += `<div class="flex justify-between bg-white p-3 rounded-xl text-[11px] border shadow-sm mb-1">
-                    <div><span class="font-bold">${o.nome}</span><span class="text-[9px] text-slate-400 block">${o.data}</span></div>
-                    <span class="font-black text-blue-700">${o.ore}h</span>
-                </div>`;
-            });
-        }
-
-        // EXPORT EXCEL DAL CLOUD
-        window.esportaExcel = () => {
-            const mese = document.getElementById('meseCalendario').value;
-            if(!mese) return alert("Scegli un mese!");
-            let csv = "DATA;CANTIERE;OPERAIO;ORE;LAVORO\n";
-            let found = false;
-            cantieri.forEach(c => {
-                (c.ore || []).forEach(o => {
-                    if(o.data.startsWith(mese)) {
-                        found = true;
-                        csv += `${o.data};${c.nome};${o.nome};${o.ore};${(o.desc || '-').replace(/;/g,',')}\n`;
-                    }
-                });
-            });
-            if(!found) return alert("Nessun dato!");
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.href = url; a.download = `Ore_${mese}.csv`; a.click();
-        };
-
-        // Altre funzioni (Note, Foto, Documenti)
-        window.aggiungiNota = async () => {
-            const t = document.getElementById('nuovaNota').value;
-            if(!t) return;
-            await updateDoc(doc(db, "cantieri", cantiereAttuale.id), { note: arrayUnion({ testo: t, data: new Date().toLocaleString() }) });
-            document.getElementById('nuovaNota').value = '';
-        };
-        function renderNote() {
-            const c = document.getElementById('listaNote'); c.innerHTML = '';
-            (cantiereAttuale.note || []).forEach(n => { c.innerHTML += `<div class="bg-slate-50 p-2 rounded-lg border text-[10px] mb-1">${n.testo}</div>`; });
-        }
-        window.caricaFoto = (e) => {
-            const f = e.target.files[0]; if(!f) return;
-            const r = new FileReader(); r.onload = async (ev) => {
-                await updateDoc(doc(db, "cantieri", cantiereAttuale.id), { foto: arrayUnion(ev.target.result) });
-            }; r.readAsDataURL(f);
-        };
-        function renderFoto() {
-            const c = document.getElementById('galleriaFoto'); c.innerHTML = '';
-            (cantiereAttuale.foto || []).forEach(f => { c.innerHTML += `<img src="${f}" class="w-full aspect-square object-cover rounded-xl border">`; });
-        }
-        window.caricaDocumento = (e) => {
-            const f = e.target.files[0]; if(!f) return;
-            const r = new FileReader(); r.onload = async (ev) => {
-                await updateDoc(doc(db, "cantieri", cantiereAttuale.id), { documenti: arrayUnion({ nome: f.name, data: ev.target.result }) });
-            }; r.readAsDataURL(f);
-        };
-        function renderDocumenti() {
-            const c = document.getElementById('listaDocumenti'); c.innerHTML = '';
-            (cantiereAttuale.documenti || []).forEach(d => { c.innerHTML += `<div class="bg-white p-2 rounded-lg flex justify-between text-[10px] border"><span>📄 ${d.nome}</span><a href="${d.data}" download="${d.nome}" class="text-orange-600 underline">Apri</a></div>`; });
-        }
-        window.aggiornaStato = async (colore) => { await updateDoc(doc(db, "cantieri", cantiereAttuale.id), { stato: colore }); };
-
-        window.renderCalendario = () => {
-            const mese = document.getElementById('meseCalendario').value;
-            const container = document.getElementById('listaGiorni'); container.innerHTML = '';
-            if(!mese) return;
-            let diari = {};
-            cantieri.forEach(c => (c.ore || []).forEach(o => {
-                if(o.data.startsWith(mese)) { if(!diari[o.data]) diari[o.data] = []; diari[o.data].push({...o, cNome: c.nome}); }
-            }));
-            Object.keys(diari).sort().reverse().forEach(d => {
-                let html = `<div class="bg-white rounded-2xl shadow mb-4 overflow-hidden border">
-                    <div class="bg-slate-100 p-3 font-black text-[10px] flex justify-between"><span>📅 ${d}</span><span class="bg-yellow-500 px-2 rounded">${diari[d].reduce((a,b)=>a+b.ore,0)}h</span></div><div class="p-2 space-y-2">`;
-                diari[d].forEach(l => { html += `<div class="p-3 bg-slate-50 rounded-xl text-[11px] flex justify-between"><div><b class="text-blue-600">${l.cNome}</b><br>${l.nome}<br><i class="text-slate-400">${l.desc || ''}</i></div><div class="font-black">${l.ore}h</div></div>`; });
-                container.innerHTML += html + `</div></div>`;
-            });
-        };
-
-        window.switchTab = (tab) => {
-            document.getElementById('vistaLista').classList.add('hidden');
-            document.getElementById('vistaCalendario').classList.add('hidden');
-            document.getElementById('btnTabCantieri').classList.remove('tab-active');
-            document.getElementById('btnTabCalendario').classList.remove('tab-active');
-            if(tab === 'cantieri') { document.getElementById('vistaLista').classList.remove('hidden'); document.getElementById('btnTabCantieri').classList.add('tab-active'); }
-            else { document.getElementById('vistaCalendario').classList.remove('hidden'); document.getElementById('btnTabCalendario').classList.add('tab-active'); }
-        };
-
-        document.getElementById('nomeDitta').innerText = ditta;
-    </script>
+    <title>Cantiere Online Pro</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    
+    <style>
+        body { font-family: sans-serif; background: #1a1a1a; color: #fff; margin: 0; padding: 15px; }
+        h1 { color: #ffcc00; text-align: center; text-transform: uppercase; border-bottom: 2px solid #ffcc00; padding-bottom: 10px; }
+        .card { background: #333; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 5px solid #ffcc00; position: relative; }
+        input, select, button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 5px; border: none; font-size: 16px; box-sizing: border-box; }
+        input { background: #fff; color: #000; }
+        button { background: #ffcc00; color: #000; font-weight: bold; cursor: pointer; }
+        button:active { background: #e6b800; }
+        .btn-delete { background: #ff4444; color: white; width: auto; padding: 5px 10px; margin-left: 10px; font-size: 12px; }
+        .btn-edit { background: #4488ff; color: white; width: auto; padding: 5px 10px; font-size: 12px; }
+        .actions { margin-top: 10px; display: flex; gap: 10px; justify-content: flex-end; }
+        .operaio-tag { font-size: 14px; color: #ffcc00; font-weight: bold; }
+        .desc-tag { font-style: italic; color: #ccc; display: block; margin-top: 5px; }
+    </style>
 </head>
-<body class="bg-gray-100 font-sans min-h-screen text-gray-900 pb-20">
+<body>
 
-    <header class="bg-slate-900 text-white shadow-xl sticky top-0 z-40">
-        <div class="p-4 flex justify-between items-center">
-            <div class="flex flex-col text-left">
-                <h1 id="nomeDitta" onclick="cambiaNomeDitta()" class="text-lg font-black uppercase italic cursor-pointer hover:text-yellow-500">Cantiere Online</h1>
-                <span class="text-[10px] font-bold text-slate-500 uppercase">Gestione Cloud</span>
-            </div>
-            <button onclick="toggleModal()" class="bg-yellow-500 text-slate-900 px-4 py-2 rounded-full font-bold text-[10px] uppercase">+ Nuovo Cantiere</button>
-        </div>
-        <div id="mainNav" class="flex bg-slate-800 text-slate-400 font-black text-[11px] uppercase text-center">
-            <button onclick="switchTab('cantieri')" id="btnTabCantieri" class="flex-1 py-3 tab-active">🏗️ Cantieri</button>
-            <button onclick="switchTab('calendario')" id="btnTabCalendario" class="flex-1 py-3">🗓️ Calendario</button>
-        </div>
-    </header>
+    <h1>🏗️ Gestione Cantieri</h1>
 
-    <main id="vistaLista" class="container mx-auto p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left"></main>
-
-    <main id="vistaCalendario" class="container mx-auto p-4 hidden">
-        <div class="bg-white rounded-2xl shadow-lg p-5 mb-6 border-b-4 border-yellow-500">
-            <div class="flex gap-2">
-                <input type="month" id="meseCalendario" onchange="renderCalendario()" class="flex-1 p-3 bg-slate-100 rounded-xl font-bold outline-none text-sm">
-                <button onclick="esportaExcel()" class="bg-green-600 text-white px-4 rounded-xl font-black text-[10px] uppercase">Excel</button>
-            </div>
-        </div>
-        <div id="listaGiorni" class="space-y-4 text-left"></div>
-    </main>
-
-    <main id="vistaDettaglio" class="container mx-auto p-4 hidden">
-        <button onclick="tornaAllaLista()" class="text-slate-600 font-bold mb-4 text-sm">← Torna Indietro</button>
-        <div class="bg-white rounded-3xl shadow-2xl overflow-hidden border text-left">
-            <div class="bg-slate-800 p-6 text-white flex justify-between items-center">
-                <div><h2 id="detNome" class="text-2xl font-black uppercase leading-none">Nome</h2><p id="detIndirizzo" class="text-slate-400 text-xs mt-1 italic"></p></div>
-                <select id="cambiaStato" onchange="aggiornaStato(this.value)" class="bg-slate-700 border-none rounded-lg p-2 text-xs font-bold">
-                    <option value="bg-green-500">🟢 Operativo</option><option value="bg-yellow-500">🟡 In Attesa</option><option value="bg-red-500">🔴 Bloccato</option>
-                </select>
-            </div>
-            <div class="p-6 space-y-8">
-                <div class="bg-blue-50 p-5 rounded-2xl border-2 border-blue-100">
-                    <h3 class="font-black text-blue-900 uppercase text-xs mb-4 italic">Registro Ore</h3>
-                    <div class="grid grid-cols-1 gap-2 mb-4">
-                        <div class="grid grid-cols-2 gap-2"><input type="text" id="nomeOperaio" placeholder="Operaio" class="p-3 bg-white rounded-xl text-sm"><input type="number" id="oreLavoro" placeholder="Ore" class="p-3 bg-white rounded-xl text-sm"></div>
-                        <input type="text" id="descLavoro" placeholder="Cosa è stato fatto?" class="p-3 bg-white rounded-xl text-sm">
-                        <input type="date" id="dataLavoro" class="p-3 bg-white rounded-xl text-sm">
-                        <button onclick="aggiungiOre()" class="bg-blue-700 text-white py-3 rounded-xl font-black text-xs uppercase shadow-md">Salva nel Cloud</button>
-                    </div>
-                    <div id="listaOreCantiere" class="space-y-2 max-h-48 overflow-y-auto"></div>
-                </div>
-                <div class="bg-orange-50 p-5 rounded-2xl border-2 border-orange-100">
-                    <h3 class="font-black text-orange-900 uppercase text-xs mb-4">📄 Progetti e Documenti</h3>
-                    <input type="file" class="hidden" id="inputDoc" onchange="caricaDocumento(event)"><button onclick="document.getElementById('inputDoc').click()" class="w-full bg-white border-2 border-dashed border-orange-300 p-3 rounded-xl text-orange-600 font-bold text-xs uppercase">+ Allega PDF</button>
-                    <div id="listaDocumenti" class="mt-3 space-y-2"></div>
-                </div>
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="space-y-3"><h3 class="font-black text-slate-800 uppercase text-xs">📝 Note</h3><textarea id="nuovaNota" class="w-full p-3 rounded-xl border h-14 text-sm italic"></textarea><button onclick="aggiungiNota()" class="w-full bg-slate-800 text-white py-2 rounded-xl font-bold text-[10px] uppercase">Salva Nota</button><div id="listaNote" class="space-y-2 mt-2"></div></div>
-                    <div class="space-y-3"><h3 class="font-black text-slate-800 uppercase text-xs">📸 Foto</h3><input type="file" accept="image/*" class="hidden" id="inputFoto" onchange="caricaFoto(event)"><button onclick="document.getElementById('inputFoto').click()" class="w-full bg-slate-200 p-3 rounded-xl text-[10px] font-black text-slate-500 uppercase">+ Foto</button><div id="galleriaFoto" class="grid grid-cols-3 gap-2 mt-2"></div></div>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <div id="modalCantiere" class="fixed inset-0 bg-slate-900/80 hidden items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-3xl p-8 max-w-sm w-full">
-            <h2 class="text-xl font-black mb-6 text-slate-800 uppercase italic text-center">Nuovo Progetto</h2>
-            <input type="text" id="nomeCantiere" placeholder="Nome" class="w-full p-4 bg-slate-100 rounded-2xl mb-4 font-bold"><input type="text" id="indirizzoCantiere" placeholder="Indirizzo" class="w-full p-4 bg-slate-100 rounded-2xl mb-8">
-            <div class="flex gap-4"><button onclick="toggleModal()" class="flex-1 font-bold text-slate-400">CHIUDI</button><button onclick="salvaCantiere()" class="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-black text-xs uppercase">CREA</button></div>
-        </div>
+    <div style="background: #444; padding: 15px; border-radius: 10px; margin-bottom: 25px;">
+        <h3 style="margin-top:0">Nuovo Inserimento</h3>
+        <input type="text" id="nomeCantiere" placeholder="Nome Cantiere (es: Villa Rossi)">
+        <input type="text" id="nomeOperaio" placeholder="Tuo Nome (Operaio)">
+        <input type="number" id="oreLavoro" placeholder="Ore lavorate">
+        <input type="text" id="descrizione" placeholder="Cosa hai fatto?">
+        <button onclick="aggiungiDato()">Invia in Cloud 🚀</button>
     </div>
 
+    <hr style="border: 0.5px solid #555">
+
+    <div id="listaCantieri">
+        <p style="text-align:center">Caricamento dati...</p>
+    </div>
+
+    <script>
+        // --- INIZIO CONFIGURAZIONE FIREBASE ---
+        // Sostituisci tutto questo blocco con le TUE chiavi che hai copiato da Firebase
+        var firebaseConfig = {
+            apiKey: "IL_TUO_API_KEY",
+            authDomain: "IL_TUO_PROGETTO.firebaseapp.com",
+            projectId: "IL_TUO_PROGETTO_ID",
+            storageBucket: "IL_TUO_PROGETTO.appspot.com",
+            messagingSenderId: "IL_TUO_SENDER_ID",
+            appId: "IL_TUO_APP_ID"
+        };
+        // --- FINE CONFIGURAZIONE FIREBASE ---
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Leggi i dati in tempo reale
+        db.collection("cantieri").orderBy("nomeCantiere").onSnapshot((snapshot) => {
+            const lista = document.getElementById("listaCantieri");
+            lista.innerHTML = "";
+            
+            if (snapshot.empty) {
+                lista.innerHTML = "<p style='text-align:center'>Nessun cantiere registrato.</p>";
+                return;
+            }
+
+            snapshot.forEach((doc) => {
+                const d = doc.data();
+                const id = doc.id;
+                lista.innerHTML += `
+                    <div class="card">
+                        <strong style="font-size: 18px;">${d.nomeCantiere}</strong>
+                        <span class="desc-tag">${d.descrizione || 'Nessuna descrizione'}</span>
+                        <div style="margin-top:8px;">
+                            <span class="operaio-tag">👤 ${d.nomeOperaio}</span> | 
+                            <span>⏱️ ${d.oreLavoro} ore</span>
+                        </div>
+                        <div class="actions">
+                            <button class="btn-edit" onclick="modificaCantiere('${id}', '${d.nomeCantiere}')">✏️ Modifica</button>
+                            <button class="btn-delete" onclick="eliminaCantiere('${id}')">🗑️ Elimina</button>
+                        </div>
+                    </div>
+                `;
+            });
+        });
+
+        // Aggiungi un nuovo cantiere
+        async function aggiungiDato() {
+            const nome = document.getElementById("nomeCantiere").value;
+            const operaio = document.getElementById("nomeOperaio").value;
+            const ore = document.getElementById("oreLavoro").value;
+            const desc = document.getElementById("descrizione").value;
+
+            if (nome && operaio && ore) {
+                await db.collection("cantieri").add({
+                    nomeCantiere: nome,
+                    nomeOperaio: operaio,
+                    oreLavoro: ore,
+                    descrizione: desc,
+                    data: new Date().toLocaleDateString()
+                });
+                // Pulisci i campi
+                document.getElementById("nomeCantiere").value = "";
+                document.getElementById("descrizione").value = "";
+                alert("Dato salvato!");
+            } else {
+                alert("Per favore, compila almeno Nome Cantiere, Operaio e Ore.");
+            }
+        }
+
+        // Elimina cantiere
+        async function eliminaCantiere(id) {
+            if (confirm("Vuoi davvero eliminare questo record?")) {
+                await db.collection("cantieri").doc(id).delete();
+            }
+        }
+
+        // Modifica nome cantiere
+        async function modificaCantiere(id, vecchioNome) {
+            const nuovoNome = prompt("Cambia nome cantiere:", vecchioNome);
+            if (nuovoNome != null && nuovoNome != "") {
+                await db.collection("cantieri").doc(id).update({
+                    nomeCantiere: nuovoNome
+                });
+            }
+        }
+    </script>
 </body>
 </html>
+
