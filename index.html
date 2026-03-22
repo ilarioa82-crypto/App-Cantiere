@@ -1,49 +1,46 @@
 <!DOCTYPE html>
-<html lang="it">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cantiere Online Pro</title>
+    <title>Gestione Cantiere</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-    
     <style>
-        body { font-family: sans-serif; background: #1a1a1a; color: #fff; margin: 0; padding: 15px; }
-        h1 { color: #ffcc00; text-align: center; text-transform: uppercase; border-bottom: 2px solid #ffcc00; padding-bottom: 10px; }
-        .card { background: #333; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 5px solid #ffcc00; position: relative; }
-        input, select, button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 5px; border: none; font-size: 16px; box-sizing: border-box; }
-        input { background: #fff; color: #000; }
-        button { background: #ffcc00; color: #000; font-weight: bold; cursor: pointer; }
-        button:active { background: #e6b800; }
-        .btn-delete { background: #ff4444; color: white; width: auto; padding: 5px 10px; margin-left: 10px; font-size: 12px; }
-        .btn-edit { background: #4488ff; color: white; width: auto; padding: 5px 10px; font-size: 12px; }
-        .actions { margin-top: 10px; display: flex; gap: 10px; justify-content: flex-end; }
-        .operaio-tag { font-size: 14px; color: #ffcc00; font-weight: bold; }
-        .desc-tag { font-style: italic; color: #ccc; display: block; margin-top: 5px; }
+        body { font-family: Arial, sans-serif; background: #222; color: #fff; padding: 20px; }
+        h1 { color: #ffcc00; text-align: center; }
+        .sezione { background: #333; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #ffcc00; }
+        input { width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: none; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: #ffcc00; color: #000; font-weight: bold; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+        .scheda-cantiere { background: #444; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 5px solid #ffcc00; position: relative; }
+        .riga-dati { margin-bottom: 5px; font-size: 16px; }
+        .label { color: #ffcc00; font-weight: bold; }
+        
+        /* NUOVI TASTI CESTINO E MODIFICA */
+        .area-tasti { display: flex; gap: 10px; margin-top: 10px; }
+        .btn-elimina { background: #ff4444; color: white; padding: 8px; font-size: 14px; width: 48%; }
+        .btn-modifica { background: #4488ff; color: white; padding: 8px; font-size: 14px; width: 48%; }
     </style>
 </head>
 <body>
 
-    <h1>🏗️ Gestione Cantieri</h1>
+    <h1>🏗️ REGISTRO CANTIERE</h1>
 
-    <div style="background: #444; padding: 15px; border-radius: 10px; margin-bottom: 25px;">
-        <h3 style="margin-top:0">Nuovo Inserimento</h3>
-        <input type="text" id="nomeCantiere" placeholder="Nome Cantiere (es: Villa Rossi)">
-        <input type="text" id="nomeOperaio" placeholder="Tuo Nome (Operaio)">
-        <input type="number" id="oreLavoro" placeholder="Ore lavorate">
-        <input type="text" id="descrizione" placeholder="Cosa hai fatto?">
-        <button onclick="aggiungiDato()">Invia in Cloud 🚀</button>
+    <div class="sezione">
+        <h3>Aggiungi Nuovo Rapporto</h3>
+        <input type="text" id="cantiere" placeholder="Nome Cantiere">
+        <input type="text" id="operaio" placeholder="Nome Operaio">
+        <input type="number" id="ore" placeholder="Ore Lavorate">
+        <input type="text" id="note" placeholder="Note / Lavoro svolto">
+        <button onclick="salvaDato()">INVIA DATI 🚀</button>
     </div>
 
-    <hr style="border: 0.5px solid #555">
-
-    <div id="listaCantieri">
-        <p style="text-align:center">Caricamento dati...</p>
+    <div id="contenitore-dati">
+        <p style="text-align:center">Caricamento in corso...</p>
     </div>
 
     <script>
-        // --- INIZIO CONFIGURAZIONE FIREBASE ---
-        // Sostituisci tutto questo blocco con le TUE chiavi che hai copiato da Firebase
+        // --- QUI METTI LE TUE CHIAVI FIREBASE ---
         var firebaseConfig = {
             apiKey: "IL_TUO_API_KEY",
             authDomain: "IL_TUO_PROGETTO.firebaseapp.com",
@@ -52,82 +49,78 @@
             messagingSenderId: "IL_TUO_SENDER_ID",
             appId: "IL_TUO_APP_ID"
         };
-        // --- FINE CONFIGURAZIONE FIREBASE ---
+        // ---------------------------------------
 
         firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+        var db = firebase.firestore();
 
-        // Leggi i dati in tempo reale
-        db.collection("cantieri").orderBy("nomeCantiere").onSnapshot((snapshot) => {
-            const lista = document.getElementById("listaCantieri");
-            lista.innerHTML = "";
-            
-            if (snapshot.empty) {
-                lista.innerHTML = "<p style='text-align:center'>Nessun cantiere registrato.</p>";
-                return;
-            }
-
+        // LEGGI I DATI
+        db.collection("rapporti").onSnapshot((snapshot) => {
+            var contenitore = document.getElementById("contenitore-dati");
+            contenitore.innerHTML = "";
             snapshot.forEach((doc) => {
-                const d = doc.data();
-                const id = doc.id;
-                lista.innerHTML += `
-                    <div class="card">
-                        <strong style="font-size: 18px;">${d.nomeCantiere}</strong>
-                        <span class="desc-tag">${d.descrizione || 'Nessuna descrizione'}</span>
-                        <div style="margin-top:8px;">
-                            <span class="operaio-tag">👤 ${d.nomeOperaio}</span> | 
-                            <span>⏱️ ${d.oreLavoro} ore</span>
-                        </div>
-                        <div class="actions">
-                            <button class="btn-edit" onclick="modificaCantiere('${id}', '${d.nomeCantiere}')">✏️ Modifica</button>
-                            <button class="btn-delete" onclick="eliminaCantiere('${id}')">🗑️ Elimina</button>
+                var d = doc.data();
+                var id = doc.id;
+                contenitore.innerHTML += `
+                    <div class="scheda-cantiere">
+                        <div class="riga-dati"><span class="label">Cantiere:</span> ${d.cantiere}</div>
+                        <div class="riga-dati"><span class="label">Operaio:</span> ${d.operaio}</div>
+                        <div class="riga-dati"><span class="label">Ore:</span> ${d.ore}</div>
+                        <div class="riga-dati"><span class="label">Note:</span> ${d.note}</div>
+                        
+                        <div class="area-tasti">
+                            <button class="btn-modifica" onclick="modificaDato('${id}', '${d.cantiere}', '${d.ore}')">✏️ Modifica</button>
+                            <button class="btn-elimina" onclick="eliminaDato('${id}')">🗑️ Elimina</button>
                         </div>
                     </div>
                 `;
             });
         });
 
-        // Aggiungi un nuovo cantiere
-        async function aggiungiDato() {
-            const nome = document.getElementById("nomeCantiere").value;
-            const operaio = document.getElementById("nomeOperaio").value;
-            const ore = document.getElementById("oreLavoro").value;
-            const desc = document.getElementById("descrizione").value;
+        // SALVA I DATI
+        function salvaDato() {
+            var c = document.getElementById("cantiere").value;
+            var o = document.getElementById("operaio").value;
+            var h = document.getElementById("ore").value;
+            var n = document.getElementById("note").value;
 
-            if (nome && operaio && ore) {
-                await db.collection("cantieri").add({
-                    nomeCantiere: nome,
-                    nomeOperaio: operaio,
-                    oreLavoro: ore,
-                    descrizione: desc,
-                    data: new Date().toLocaleDateString()
+            if(c && o && h) {
+                db.collection("rapporti").add({
+                    cantiere: c,
+                    operaio: o,
+                    ore: h,
+                    note: n,
+                    data: new Date().getTime()
                 });
-                // Pulisci i campi
-                document.getElementById("nomeCantiere").value = "";
-                document.getElementById("descrizione").value = "";
-                alert("Dato salvato!");
+                document.getElementById("cantiere").value = "";
+                document.getElementById("note").value = "";
+                alert("Salvato correttamente!");
             } else {
-                alert("Per favore, compila almeno Nome Cantiere, Operaio e Ore.");
+                alert("Riempi tutti i campi!");
             }
         }
 
-        // Elimina cantiere
-        async function eliminaCantiere(id) {
-            if (confirm("Vuoi davvero eliminare questo record?")) {
-                await db.collection("cantieri").doc(id).delete();
+        // FUNZIONE ELIMINA (CESTINO)
+        function eliminaDato(id) {
+            if(confirm("Vuoi cancellare questo rapporto definitivamente?")) {
+                db.collection("rapporti").doc(id).delete();
             }
         }
 
-        // Modifica nome cantiere
-        async function modificaCantiere(id, vecchioNome) {
-            const nuovoNome = prompt("Cambia nome cantiere:", vecchioNome);
-            if (nuovoNome != null && nuovoNome != "") {
-                await db.collection("cantieri").doc(id).update({
-                    nomeCantiere: nuovoNome
+        // FUNZIONE MODIFICA
+        function modificaDato(id, vecchioCantiere, vecchieOre) {
+            var nuovoCantiere = prompt("Cambia nome cantiere:", vecchioCantiere);
+            var nuoveOre = prompt("Cambia ore:", vecchieOre);
+            
+            if(nuovoCantiere != null && nuoveOre != null) {
+                db.collection("rapporti").doc(id).update({
+                    cantiere: nuovoCantiere,
+                    ore: nuoveOre
                 });
             }
         }
     </script>
 </body>
 </html>
+
 
