@@ -163,31 +163,8 @@
     }
 
     function eliminaCantiere(id) { if(confirm("Vuoi eliminare tutta la cartella?")) db.collection("cantieri_cartelle").doc(id).delete(); }
-    function cambiaDitta() { let n = prompt("Nome ditta:"); if(n) document.getElementById('nomeDitta').innerText = n.toUpperCase(); }
-</script>    // 1. FUNZIONE CHE LEGGE IL NOME DALLA "CASSAFORTE" APPENA APRI L'APP
-    db.collection("configurazione").doc("info_ditta").onSnapshot((doc) => {
-        if (doc.exists) {
-            document.getElementById('nomeDitta').innerText = doc.data().nome;
-        } else {
-            document.getElementById('nomeDitta').innerText = "CLICCA PER NOME DITTA";
-        }
-    });
-
-    // 2. FUNZIONE CHE SALVA IL NOME NELLA "CASSAFORTE" PER SEMPRE
-    async function cambiaDitta() {
-        let nuovoNome = prompt("Inserisci il nome della tua ditta:");
-        if (nuovoNome) {
-            let nomeMaiuscolo = nuovoNome.toUpperCase();
-            
-            // Questo comando invia il nome a Firebase
-            await db.collection("configurazione").doc("info_ditta").set({
-                nome: nomeMaiuscolo
-            });
-            
-            alert("Nome ditta aggiornato per tutti!");
-        }
-    }
-
+    function cambiaDitta() { let n = prompt(" R.J.A.srl:"); if(n) document.getElementById('R.J.A.srl').innerText = n.toUpperCase(); }
+</scrip
 </body>
 </html>
 
